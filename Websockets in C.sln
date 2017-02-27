@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Websockets in C", "Websockets in C\Websockets in C.vcxproj", "{294CD87A-9989-4EA9-8409-0FA9BD40F87A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ClientSocket", "Websockets in C\Websockets in C.vcxproj", "{294CD87A-9989-4EA9-8409-0FA9BD40F87A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ServerSocket", "ServerSocket\ServerSocket.vcxproj", "{F91100B7-CCE9-422B-A44A-AF990EB5AF18}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{294CD87A-9989-4EA9-8409-0FA9BD40F87A}.Release|x64.Build.0 = Release|x64
 		{294CD87A-9989-4EA9-8409-0FA9BD40F87A}.Release|x86.ActiveCfg = Release|Win32
 		{294CD87A-9989-4EA9-8409-0FA9BD40F87A}.Release|x86.Build.0 = Release|Win32
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Debug|x64.ActiveCfg = Debug|x64
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Debug|x64.Build.0 = Debug|x64
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Debug|x86.ActiveCfg = Debug|Win32
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Debug|x86.Build.0 = Debug|Win32
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Release|x64.ActiveCfg = Release|x64
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Release|x64.Build.0 = Release|x64
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Release|x86.ActiveCfg = Release|Win32
+		{F91100B7-CCE9-422B-A44A-AF990EB5AF18}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -19,11 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{294CD87A-9989-4EA9-8409-0FA9BD40F87A}</ProjectGuid>
+    <ProjectGuid>{F91100B7-CCE9-422B-A44A-AF990EB5AF18}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>WebsocketsinC</RootNamespace>
+    <RootNamespace>ServerSocket</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
-    <ProjectName>ClientSocket</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -147,7 +146,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Client.c" />
+    <ClCompile Include="Server.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
