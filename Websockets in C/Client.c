@@ -9,7 +9,6 @@
 #define false 0
 #define true  1
 
-#define MESSAGE_BUFFER_SIZE 100
 #define REPLY_BUFFER_SIZE	100
 #define CUSTOM_IP			"127.0.0.1"
 #define CUSTOM_PORT			8888
@@ -19,16 +18,17 @@ SOCKET getSocket();
 bool connectToServer(char *ip, int port, SOCKET mySocket);
 bool sendDataToServer(SOCKET socket, const char *message);
 bool receiveReplyFromServer(SOCKET socket, char *reply);
+bool exitProgram(SOCKET clientSocket);
 
 int main()
 {
 	SOCKET socket;
 	int statusCode = 0;
-	char message[MESSAGE_BUFFER_SIZE];
+	char *message = "Please let me in";
 	char reply[REPLY_BUFFER_SIZE];
 
 
-	printf("Attempting to start WinSock... ");
+	printf("Attempting to start Winsock... ");
 	if (startWinsock() == false)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
@@ -74,19 +74,26 @@ int main()
 	printf("SUCCESS \n");
 	printf("REPLY: %s \n", reply);
 
-	// ToDo: close socket
-	// ToDO: WSACleanUp?
-	// ToDo: read if there is any other information
+
+	printf("Attempting to exit and cleanup... ");
+	if (exitProgram(socket) == false)
+	{
+		printf("FAILED : %d \n\n", WSAGetLastError());
+		return 0;
+	}
+	printf("SUCCESS \n");
+
+	return 0;
 }
 
 bool startWinsock()
 {
 	WSADATA winsockLibrary; // Windows Sockets initialization information
 
-							/* The WSAStartup function is used to start or initialise winsock library.
-							It takes 2 parameters; the first one is the version we want to load;
-							the second one is a WSADATA structure which will hold additional information after winsock has been loaded. */
-							// (MAKEWORD) The highest version of Windows Sockets specification that the caller can use.
+	/* The WSAStartup function is used to start or initialise winsock library.
+	It takes 2 parameters; the first one is the version we want to load;
+	the second one is a WSADATA structure which will hold additional information after winsock has been loaded. */
+	// (MAKEWORD) The highest version of Windows Sockets specification that the caller can use.
 	if (WSAStartup(MAKEWORD(2, 2), &winsockLibrary) != 0)
 		return false;
 	else
@@ -96,8 +103,8 @@ bool startWinsock()
 SOCKET getSocket()
 {
 	/*  Address Family : AF_INET(this is IP version 4)
-	Type : SOCK_STREAM(this means connection oriented TCP protocol)
-	Protocol : 0[or IPPROTO_TCP, IPPROTO_UDP] */
+		Type : SOCK_STREAM(this means connection oriented TCP protocol)
+		Protocol : 0[or IPPROTO_TCP, IPPROTO_UDP] */
 	return socket(AF_INET, SOCK_STREAM, 0);
 }
 
@@ -135,4 +142,18 @@ bool receiveReplyFromServer(SOCKET socket, char *reply)
 		reply[replyStatus] = '\0';
 		return true;
 	}
+}
+
+bool exitProgram(SOCKET socket)
+{
+	bool isSafe = true;
+	if (closesocket(socket) == SOCKET_ERROR)
+		isSafe = false;
+	/* To deregister itself from a Windows Sockets implementation 
+		and allow the implementation to free any resources allocated 
+		on behalf of the application or DLL. */
+	if (WSACleanup() == SOCKET_ERROR)
+		isSafe = false;
+
+	return isSafe;
 }
