@@ -1,18 +1,8 @@
-#include<stdio.h>
-//#include<stdlib.h>
-#include<winsock2.h>
+#include <stdio.h>
+#include <winsock2.h>
+#include "Definitions.h"
 
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
-
-// ToDo: put matching definitions and headings in to a header file and include it!
-#define bool	int
-#define true	1
-#define false	0
-
-#define CUSTOM_IP			"127.0.0.1"
-#define CUSTOM_PORT			8888
-#define REPLY_BUFFER_SIZE	1000
-#define MESSAGE_BUFFER_SIZE 1000
 
 bool startWinsock();
 SOCKET getSocket();

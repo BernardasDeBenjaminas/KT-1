@@ -1,19 +1,11 @@
 ﻿#define _WINSOCK_DEPRECATED_NO_WARNINGS // Dėl IP konvertavimo iš string (nėra kitų metodų)
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <WinSock2.h>
+#include "Definitions.h"
 
 // dependency to the Ws2_32.lib library
 #pragma comment(lib, "Ws2_32.lib")
-
-#define bool  int
-#define false 0
-#define true  1
-
-#define REPLY_BUFFER_SIZE	1000
-#define CUSTOM_IP			"127.0.0.1"
-#define CUSTOM_PORT			8888
 
 bool startWinsock();
 SOCKET getSocket();
@@ -108,6 +100,35 @@ bool connectToServer(char *ip, int port, SOCKET clientSocket)
 		return true;
 }
 
+void joinGame(SOCKET clientSocket)
+{
+	char messageFromServer[REPLY_BUFFER_SIZE];
+	char *guessingLetter = NULL;
+	char letter;
+
+	while (true)
+	{
+		system("@cls||clear");
+
+		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
+			printf("%s \n", messageFromServer);
+		else
+			break;
+
+		printf("My letter of choice: ");
+		do
+			letter = getchar();
+		while (isspace(letter));
+
+		guessingLetter = &letter;
+		guessingLetter[1] = '\0';
+
+		if (sendDataToServer(clientSocket, guessingLetter) == false)
+			printf("FAILED : %d \n\n", WSAGetLastError());
+
+	}
+}
+
 bool sendDataToServer(SOCKET clientSocket, char *messageToServer)
 {
 	printf("Trying to send");
@@ -140,35 +161,6 @@ bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer)
 	}
 	messageFromServer[allSizeReceived] = '\0';
 	return true;
-}
-
-void joinGame(SOCKET clientSocket)
-{
-	char messageFromServer[REPLY_BUFFER_SIZE];
-	char *guessingLetter = NULL;
-	char letter;
-
-	while (true)
-	{
-		system("@cls||clear");
-
-		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
-			printf("%s \n", messageFromServer);
-		else
-			break;
-
-		printf("My letter of choice: ");
-		do
-			letter = getchar();
-		while (isspace(letter));
-
-		guessingLetter = &letter;
-		guessingLetter[1] = '\0';
-
-		if (sendDataToServer(clientSocket, guessingLetter) == false)
-			printf("FAILED : %d \n\n", WSAGetLastError());
-
-	}
 }
 
 bool exitProgram(SOCKET socket)
