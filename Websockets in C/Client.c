@@ -9,23 +9,23 @@
 #define false 0
 #define true  1
 
-#define REPLY_BUFFER_SIZE	100
+#define REPLY_BUFFER_SIZE	1000
 #define CUSTOM_IP			"127.0.0.1"
 #define CUSTOM_PORT			8888
 
 bool startWinsock();
 SOCKET getSocket();
-bool connectToServer(char *ip, int port, SOCKET mySocket);
-bool sendDataToServer(SOCKET socket, const char *message);
-bool receiveReplyFromServer(SOCKET socket, char *reply);
+bool connectToServer(char *ip, int port, SOCKET clientSocket);
+bool sendDataToServer(SOCKET clientSocket, char *messageToServer);
+bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer);
 bool exitProgram(SOCKET clientSocket);
 
 int main()
 {
-	SOCKET socket;
+	SOCKET clientSocket;
 	int statusCode = 0;
-	char *message = "Please let me in";
-	char reply[REPLY_BUFFER_SIZE];
+	char *messageToServer = "Please let me in. :(";
+	char messageFromServer[REPLY_BUFFER_SIZE];
 
 
 	printf("Attempting to start Winsock... ");
@@ -38,7 +38,7 @@ int main()
 
 
 	printf("Attempting to create a socket... ");
-	socket = getSocket();
+	clientSocket = getSocket();
 	if (socket == INVALID_SOCKET)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
@@ -48,16 +48,37 @@ int main()
 
 
 	printf("Attempting to connect to server... ");
-	if (connectToServer(CUSTOM_IP, CUSTOM_PORT, socket) == false)
+	if (connectToServer(CUSTOM_IP, CUSTOM_PORT, clientSocket) == false)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
 		return 0;
 	}
-	printf("SUCCESS \n");
+	printf("SUCCESS \n\n");
 
+	char *guessingLetter = NULL;
+	char letter;
+	while (true)
+	{
+		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
+			printf("%s \n", messageFromServer);
+		else
+			break;
 
-	printf("Attempting to send data... ");
-	if (sendDataToServer(socket, message) == false)
+		printf("My letter of choice: ");
+		do
+			letter = getchar();
+		while (isspace(letter));
+
+		guessingLetter = &letter;
+		guessingLetter[1] = '\0';
+
+		if (sendDataToServer(clientSocket, guessingLetter) == false)
+			printf("FAILED : %d \n\n", WSAGetLastError());
+
+		printf("\nWaiting for reply..\n");
+	}
+	/*printf("Attempting to send data... ");
+	if (sendDataToServer(clientSocket, message) == false)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
 		return 0;
@@ -66,17 +87,17 @@ int main()
 
 
 	printf("Attempting to receive reply... ");
-	if (receiveReplyFromServer(socket, reply) == false)
+	if (receiveReplyFromServer(clientSocket, reply) == false)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
 		return 0;
 	}
 	printf("SUCCESS \n");
-	printf("REPLY: %s \n", reply);
+	printf("REPLY: %s \n", reply);*/
 
 
 	printf("Attempting to exit and cleanup... ");
-	if (exitProgram(socket) == false)
+	if (exitProgram(clientSocket) == false)
 	{
 		printf("FAILED : %d \n\n", WSAGetLastError());
 		return 0;
@@ -108,7 +129,7 @@ SOCKET getSocket()
 	return socket(AF_INET, SOCK_STREAM, 0);
 }
 
-bool connectToServer(char *ip, int port, SOCKET socket)
+bool connectToServer(char *ip, int port, SOCKET clientSocket)
 {
 	struct sockaddr_in server;
 	// The inet_addr function converts a string containing an IPv4 dotted-decimal address into a proper address for the IN_ADDR structure.
@@ -118,28 +139,67 @@ bool connectToServer(char *ip, int port, SOCKET socket)
 	// The htons function can be used to convert an IP port number in host byte order to the IP port number in network byte order.
 	server.sin_port = htons(port);
 
-	if (connect(socket, (struct sockaddr *)&server, sizeof(server)) < 0)
+	if (connect(clientSocket, (struct sockaddr *)&server, sizeof(server)) < 0)
 		return false;
 	else
 		return true;
 }
 
-bool sendDataToServer(SOCKET socket, const char *message)
+bool sendDataToServer(SOCKET clientSocket, char *messageToServer)
 {
-	if (send(socket, message, strlen(message), 0) < 0)
+	/*int sizeSent;
+	int lengthOfMessage = strlen(messageToServer);
+	char *ptrToMessage = messageToServer;
+	while (lengthOfMessage > 0)
+	{
+		sizeSent = send(clientSocket, messageToServer, strlen(messageToServer), 0);
+		if (sizeSent < 1)
+			return false;
+		ptrToMessage += sizeSent;
+		lengthOfMessage -= sizeSent;
+	}
+	return true;
+*/
+	printf("Trying to send");
+	int size = 0;
+	if ((size = send(clientSocket, messageToServer, strlen(messageToServer), 0)) < 0)
 		return false;
 	else
 		return true;
 }
 
-bool receiveReplyFromServer(SOCKET socket, char *reply)
+bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer)
 {
+	int sizeReceived, allSizeReceived = 0;
+	int sizeOfBuffer = REPLY_BUFFER_SIZE;
+	while (sizeOfBuffer > 0)
+	{
+		sizeReceived = recv(clientSocket, messageFromServer, REPLY_BUFFER_SIZE, 0);
+		allSizeReceived += sizeReceived;
+
+		if (sizeReceived < 1)
+			return false;
+
+		// We received the zero symbol but it wasn't added?
+		for (size_t i = 0; i < strlen(messageFromServer); i++)
+			if (messageFromServer[i] == '\0');
+				break;
+
+		messageFromServer += sizeReceived;
+		sizeOfBuffer -= sizeReceived;
+	}
+	messageFromServer[allSizeReceived] = '\0';
+	return true;
+
+
 	int replyStatus;
-	if ((replyStatus = recv(socket, reply, REPLY_BUFFER_SIZE, 0)) == SOCKET_ERROR)
+	if ((replyStatus = recv(clientSocket, messageFromServer, strlen(messageFromServer), 0)) == SOCKET_ERROR)
 		return false;
 	else
 	{
-		reply[replyStatus] = '\0';
+		printf("\n === LENGTH WE RECEIVED: %d\n", replyStatus);
+		messageFromServer[replyStatus] = '\0';
+
 		return true;
 	}
 }
