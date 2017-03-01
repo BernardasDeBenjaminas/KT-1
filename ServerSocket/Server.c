@@ -1,5 +1,5 @@
 #include<stdio.h>
-#include<stdlib.h>
+//#include<stdlib.h>
 #include<winsock2.h>
 
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
@@ -72,33 +72,6 @@ int main(int argc, char *argv[])
 	
 	startGame(serverSocket);
 	
-
-	/*printf("Waiting for connections... ");
-	if ((clientSocket = acceptConnection(serverSocket)) == false)
-	{
-		printf("FAILED : %d \n\n", WSAGetLastError());
-		return 0;
-	}
-	printf("CONNECTED \n");
-
-
-	printf("Attempting to send data... ");
-	if (sendDataToClient(clientSocket, messageToClient) == false)
-	{
-		printf("FAILED : %d \n\n", WSAGetLastError());
-		return 0;
-	}
-	printf("SUCCESS \n");
-
-
-	printf("Attempting to receive data... ");
-	if (receiveReplyFromClient(clientSocket, messageFromClient) == false)
-	{
-		printf("FAILED : %d \n\n", WSAGetLastError());
-		return 0;
-	}
-	printf("SUCCESS \n");
-	printf("REPLY : %s \n", messageFromClient);*/
 
 
 	printf("Attempting to close everything... ");
@@ -197,58 +170,56 @@ bool getDataFromClient(SOCKET clientSocket, char *messageFromClient)
 
 bool startGame(SOCKET serverSocket)
 {
-	int livesLeft = 5;
-	int lettersGuessed = 0;
-	char guessWord[500];		// Player's word (filled with questions marks and attempts)
-	guessWord[0] = '\0';
-	char failedGuesses[100] = "Your previous failed guesses: \0";			// Player's made guesses
-	//failedGuesses[0] = '\0';
-	
-
-	bool isGuessCorrect = false;
 	SOCKET clientSocket;
-	char messageFromClient[REPLY_BUFFER_SIZE];
-	char messageToClient[1000];
-	messageToClient[0] = '\0';
 
-	char *guessableWords[] = { "KANJONAS", "TARPEKLIS", "KATAPULTA", "INDELIS" };
-	int choice = rand() % 3;
-	char *wordToGuess = guessableWords[choice];
-
-
-	printf("\n --- GAME STARTED --- \n");
+	printf("\n --- SERVER STARTED --- \n");
 	while ((clientSocket = acceptConnection(serverSocket)) != INVALID_SOCKET)
 	{
 		printf("\n -- PLAYER CONNECTED -- \n");
 
+		// --- INIT ---
+		int livesLeft = 5, lettersGuessed = 0;
+		char guessWord[50];		// Player's word (filled with questions marks)
+		guessWord[0] = '\0';
+
+		bool isGuessCorrect = false;
+		char failedGuesses[100] = "Your previous failed guesses: \0";
+		char messageFromClient[REPLY_BUFFER_SIZE];
+		char messageToClient[MESSAGE_BUFFER_SIZE];
+		messageToClient[0] = '\0';
+
+		char *guessableWords[] = { "KANJONAS", "TARPEKLIS", "KATAPULTA", "INDELIS" };
+		int choice = rand() % 3;
+		char *wordToGuess = guessableWords[choice];
+		// --- END OF INIT ---
+
+
 		if (sendIntroMessage(clientSocket, strlen(wordToGuess), guessWord, sizeof(guessWord)) == false)
-			printf("There was a problem sending the intro message : %d\n\n", WSAGetLastError());
+			printf("There was a problem in 'sendIntroMessage()': %d\n\n", WSAGetLastError());
 
 		while (true)
 		{
-			if (getDataFromClient(clientSocket, messageFromClient) != false)
+			// Get the letter from client
+			if (getDataFromClient(clientSocket, messageFromClient) == false)
+				printf("There was a problem getting an answer from client: %d\n\n", WSAGetLastError());
+
+			isGuessCorrect = checkPlayersGuess(messageFromClient, wordToGuess, guessWord, failedGuesses, &livesLeft, &lettersGuessed);
+
+			if (lettersGuessed == strlen(wordToGuess))
 			{
-				isGuessCorrect = checkPlayersGuess(messageFromClient, wordToGuess, guessWord, failedGuesses, &livesLeft, &lettersGuessed);
-
-				if (lettersGuessed == strlen(wordToGuess))
-				{
-					// Set something
-					wonTheGame(clientSocket, messageToClient);
-					// Clean up
-				}
-
-				else if (livesLeft > 0)
-					sendResponse(clientSocket, isGuessCorrect, messageToClient, failedGuesses, guessWord, &livesLeft);
-
-				else
-				{
-					// Set something
-					lostTheGame(clientSocket, messageToClient);
-					// Clean up
-				}
-			}
-			else
+				wonTheGame(clientSocket, messageToClient);
 				break;
+			}
+
+			else if (livesLeft > 0)
+				sendResponse(clientSocket, isGuessCorrect, messageToClient, failedGuesses, guessWord, &livesLeft);
+
+			else
+			{
+				lostTheGame(clientSocket, messageToClient);
+				break;
+			}
+
 		}
 		printf(" -- PLAYER DISCONNECTED -- \n");
 	}
@@ -287,13 +258,9 @@ bool sendIntroMessage(SOCKET clientSocket, int lengthOfGuessingWord, char *guess
 	strcat_s(introMessage, sizeof(introMessage), numberOfLetters);
 
 	if (sendDataToClient(clientSocket, introMessage) == false)
-	{
 		return false;
-	}
 	else
-	{
 		return true;
-	}
 }
 
 int checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWord, char *failedGuesses, int *livesLeft, int *lettersGuessed)
@@ -318,7 +285,6 @@ int checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWor
 		int stringLength = strlen(failedGuesses);
 		failedGuesses[stringLength] = guess[0];
 		failedGuesses[stringLength + 1] = ' ';
-		//failedGuesses[stringLength + 2] = '\0';
 		return false;
 	}
 	else
@@ -327,15 +293,6 @@ int checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWor
 
 bool sendResponse(SOCKET clientSocket, bool isGuessCorrect, char *messageToClient, char *failedGuesses, char *guessWord, char *livesLeft)
 {
-	if (*livesLeft == 0)
-	{
-		strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n\nOUT OF LIVES! Better luck next time..\n\n");
-		sendDataToClient(clientSocket, messageToClient);
-		messageToClient[0] = '\0';	// Empty the array
-
-		return false;
-	}
-
 	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "---------------");
 
 	if (isGuessCorrect == true)
@@ -369,9 +326,8 @@ bool lostTheGame(SOCKET clientSocket, char *messageToClient)
 
 	if (sendDataToClient(clientSocket, messageToClient) == false)
 		return false;
-
-	messageToClient[0] = '\0';	// Empty the array
-	return true;
+	else
+		return true;
 }
 
 bool wonTheGame(SOCKET clientSocket, char *messageToClient)
@@ -380,9 +336,8 @@ bool wonTheGame(SOCKET clientSocket, char *messageToClient)
 
 	if (sendDataToClient(clientSocket, messageToClient) == false)
 		return false;
-
-	messageToClient[0] = '\0';	// Empty the array
-	return true;
+	else
+		return true;
 }
 
 bool exitProgram(SOCKET serverSocket)

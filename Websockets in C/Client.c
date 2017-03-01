@@ -1,4 +1,5 @@
 ﻿#define _WINSOCK_DEPRECATED_NO_WARNINGS // Dėl IP konvertavimo iš string (nėra kitų metodų)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <WinSock2.h>
@@ -19,14 +20,12 @@ SOCKET getSocket();
 bool connectToServer(char *ip, int port, SOCKET clientSocket);
 bool sendDataToServer(SOCKET clientSocket, char *messageToServer);
 bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer);
+void joinGame(SOCKET clientSocket);
 bool exitProgram(SOCKET clientSocket);
 
 int main()
 {
 	SOCKET clientSocket;
-	int statusCode = 0;
-	char *messageToServer = "Please let me in. :(";
-	char messageFromServer[REPLY_BUFFER_SIZE];
 
 
 	printf("Attempting to start Winsock... ");
@@ -56,47 +55,8 @@ int main()
 	}
 	printf("SUCCESS \n\n");
 
-	char *guessingLetter = NULL;
-	char letter;
-	while (true)
-	{
-		system("@cls||clear");
-
-		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
-			printf("%s \n", messageFromServer);
-		else
-			break;
-
-		printf("My letter of choice: ");
-		do
-			letter = getchar();
-		while (isspace(letter));
-
-		guessingLetter = &letter;
-		guessingLetter[1] = '\0';
-
-		if (sendDataToServer(clientSocket, guessingLetter) == false)
-			printf("FAILED : %d \n\n", WSAGetLastError());
-
-		printf("\nWaiting for reply..\n");
-	}
-	/*printf("Attempting to send data... ");
-	if (sendDataToServer(clientSocket, message) == false)
-	{
-		printf("FAILED : %d \n\n", WSAGetLastError());
-		return 0;
-	}
-	printf("SUCCESS \n");
-
-
-	printf("Attempting to receive reply... ");
-	if (receiveReplyFromServer(clientSocket, reply) == false)
-	{
-		printf("FAILED : %d \n\n", WSAGetLastError());
-		return 0;
-	}
-	printf("SUCCESS \n");
-	printf("REPLY: %s \n", reply);*/
+	
+	joinGame(clientSocket);
 
 
 	printf("Attempting to exit and cleanup... ");
@@ -180,6 +140,35 @@ bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer)
 	}
 	messageFromServer[allSizeReceived] = '\0';
 	return true;
+}
+
+void joinGame(SOCKET clientSocket)
+{
+	char messageFromServer[REPLY_BUFFER_SIZE];
+	char *guessingLetter = NULL;
+	char letter;
+
+	while (true)
+	{
+		system("@cls||clear");
+
+		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
+			printf("%s \n", messageFromServer);
+		else
+			break;
+
+		printf("My letter of choice: ");
+		do
+			letter = getchar();
+		while (isspace(letter));
+
+		guessingLetter = &letter;
+		guessingLetter[1] = '\0';
+
+		if (sendDataToServer(clientSocket, guessingLetter) == false)
+			printf("FAILED : %d \n\n", WSAGetLastError());
+
+	}
 }
 
 bool exitProgram(SOCKET socket)
