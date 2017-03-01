@@ -1,5 +1,6 @@
 ﻿#define _WINSOCK_DEPRECATED_NO_WARNINGS // Dėl IP konvertavimo iš string (nėra kitų metodų)
 #include <stdio.h>
+#include <stdlib.h>
 #include <WinSock2.h>
 
 // dependency to the Ws2_32.lib library
@@ -59,6 +60,8 @@ int main()
 	char letter;
 	while (true)
 	{
+		system("@cls||clear");
+
 		if (receiveReplyFromServer(clientSocket, messageFromServer) != false)
 			printf("%s \n", messageFromServer);
 		else
@@ -147,19 +150,6 @@ bool connectToServer(char *ip, int port, SOCKET clientSocket)
 
 bool sendDataToServer(SOCKET clientSocket, char *messageToServer)
 {
-	/*int sizeSent;
-	int lengthOfMessage = strlen(messageToServer);
-	char *ptrToMessage = messageToServer;
-	while (lengthOfMessage > 0)
-	{
-		sizeSent = send(clientSocket, messageToServer, strlen(messageToServer), 0);
-		if (sizeSent < 1)
-			return false;
-		ptrToMessage += sizeSent;
-		lengthOfMessage -= sizeSent;
-	}
-	return true;
-*/
 	printf("Trying to send");
 	int size = 0;
 	if ((size = send(clientSocket, messageToServer, strlen(messageToServer), 0)) < 0)
@@ -190,18 +180,6 @@ bool receiveReplyFromServer(SOCKET clientSocket, char *messageFromServer)
 	}
 	messageFromServer[allSizeReceived] = '\0';
 	return true;
-
-
-	int replyStatus;
-	if ((replyStatus = recv(clientSocket, messageFromServer, strlen(messageFromServer), 0)) == SOCKET_ERROR)
-		return false;
-	else
-	{
-		printf("\n === LENGTH WE RECEIVED: %d\n", replyStatus);
-		messageFromServer[replyStatus] = '\0';
-
-		return true;
-	}
 }
 
 bool exitProgram(SOCKET socket)

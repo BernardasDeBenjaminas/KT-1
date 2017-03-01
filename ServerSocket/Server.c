@@ -12,6 +12,7 @@
 #define CUSTOM_IP			"127.0.0.1"
 #define CUSTOM_PORT			8888
 #define REPLY_BUFFER_SIZE	1000
+#define MESSAGE_BUFFER_SIZE 1000
 
 bool startWinsock();
 SOCKET getSocket();
@@ -22,7 +23,10 @@ bool getDataFromClient(SOCKET clientSocket, char *messageFromClient);
 SOCKET acceptConnection(SOCKET serverSocket);
 bool startGame(SOCKET serverSocket);
 bool sendIntroMessage(SOCKET clientSocket, int lengthOfGuessingWord, char *guessWord, int sizeOfGuessWord);
-bool checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWord, char *failedGuesses);
+int checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWord, char *failedGuesses, int *livesLeft, int *lettersGuessed);
+bool sendResponse(SOCKET clientSocket, bool isGuessCorrect, char *messageToClient, char *failedGuesses, char *guessWord, char *livesLeft);
+bool lostTheGame(SOCKET clientSocket, char *messageToClient);
+bool wonTheGame(SOCKET clientSocket, char *messageToClient);
 bool exitProgram(SOCKET serverSocket);
 
 int main(int argc, char *argv[])
@@ -170,43 +174,17 @@ bool sendDataToClient(SOCKET clientSocket, char *messageToClient)
 	while (lengthOfMessage > 0)
 	{
 		sizeSent = send(clientSocket, messageToClient, strlen(messageToClient), 0);
-		printf("lengthOfMessage: %d\n", lengthOfMessage);
-		printf("sizeSent: %d\n", sizeSent);
 		if (sizeSent < 1)
 			return false;
+
 		ptrToMessage += sizeSent;
 		lengthOfMessage -= sizeSent;
 	}
 	return true;
-
-
-	/*int sizeSent;
-	if ((sizeSent = send(clientSocket, messageToClient, strlen(messageToClient), 0)) < 0)
-		return false;
-	else
-	{
-		printf("\nSTART: %s :END\n", messageToClient);
-		printf("\n === LENGTH WE SENT: %d\n", sizeSent);
-		return true;
-	}*/
 }
 
 bool getDataFromClient(SOCKET clientSocket, char *messageFromClient)
 {
-	/*int sizeReceived;
-	int sizeOfBuffer = REPLY_BUFFER_SIZE;
-	char *ptrToMessage = messageFromClient;
-	while (sizeOfBuffer > 0)
-	{
-		sizeReceived = recv(clientSocket, ptrToMessage, REPLY_BUFFER_SIZE, 0);
-		if (sizeReceived < 1)
-			return false;
-		ptrToMessage += sizeReceived;
-		sizeOfBuffer -= sizeReceived;
-	}
-	return true;*/
-
-
 	int replyStatus;
 	if ((replyStatus = recv(clientSocket, messageFromClient, strlen(messageFromClient), 0)) == SOCKET_ERROR)
 		return false;
@@ -219,18 +197,21 @@ bool getDataFromClient(SOCKET clientSocket, char *messageFromClient)
 
 bool startGame(SOCKET serverSocket)
 {
+	int livesLeft = 5;
+	int lettersGuessed = 0;
 	char guessWord[500];		// Player's word (filled with questions marks and attempts)
 	guessWord[0] = '\0';
 	char failedGuesses[100] = "Your previous failed guesses: \0";			// Player's made guesses
 	//failedGuesses[0] = '\0';
+	
 
-	bool isCorrect = false;
+	bool isGuessCorrect = false;
 	SOCKET clientSocket;
 	char messageFromClient[REPLY_BUFFER_SIZE];
-	char messageToClient[500];
+	char messageToClient[1000];
 	messageToClient[0] = '\0';
-	char *guessableWords[] = { "KANJONAS", "TARPEKLIS", "KATAPULTA", "INDELIS" };
 
+	char *guessableWords[] = { "KANJONAS", "TARPEKLIS", "KATAPULTA", "INDELIS" };
 	int choice = rand() % 3;
 	char *wordToGuess = guessableWords[choice];
 
@@ -239,6 +220,7 @@ bool startGame(SOCKET serverSocket)
 	while ((clientSocket = acceptConnection(serverSocket)) != INVALID_SOCKET)
 	{
 		printf("\n -- PLAYER CONNECTED -- \n");
+
 		if (sendIntroMessage(clientSocket, strlen(wordToGuess), guessWord, sizeof(guessWord)) == false)
 			printf("There was a problem sending the intro message : %d\n\n", WSAGetLastError());
 
@@ -246,26 +228,24 @@ bool startGame(SOCKET serverSocket)
 		{
 			if (getDataFromClient(clientSocket, messageFromClient) != false)
 			{
+				isGuessCorrect = checkPlayersGuess(messageFromClient, wordToGuess, guessWord, failedGuesses, &livesLeft, &lettersGuessed);
 
-				printf("Player's guess is: %s \n", messageFromClient);
-				isCorrect = checkPlayersGuess(messageFromClient, wordToGuess, guessWord, failedGuesses);
-				strcat_s(messageToClient, sizeof(messageToClient), "---------------");
+				if (lettersGuessed == strlen(wordToGuess))
+				{
+					// Set something
+					wonTheGame(clientSocket, messageToClient);
+					// Clean up
+				}
 
-				if (isCorrect == true)
-					strcat_s(messageToClient, sizeof(messageToClient), "\nCorrect!\n");
+				else if (livesLeft > 0)
+					sendResponse(clientSocket, isGuessCorrect, messageToClient, failedGuesses, guessWord, &livesLeft);
+
 				else
-					strcat_s(messageToClient, sizeof(messageToClient), "\nWrong!\n");
-
-				strcat_s(messageToClient, sizeof(messageToClient), failedGuesses);
-				strcat_s(messageToClient, sizeof(messageToClient), "\n");
-				strcat_s(messageToClient, sizeof(messageToClient), "\n");
-				strcat_s(messageToClient, sizeof(messageToClient), guessWord);
-				strcat_s(messageToClient, sizeof(messageToClient), "---------------");
-				messageToClient[strlen(messageToClient)] = '\0';
-
-				printf("MESSAGE TO CLIENT:\n%s\n", messageToClient);
-				sendDataToClient(clientSocket, messageToClient);
-				messageToClient[0] = '\0';	// Empty the array
+				{
+					// Set something
+					lostTheGame(clientSocket, messageToClient);
+					// Clean up
+				}
 			}
 			else
 				break;
@@ -316,7 +296,7 @@ bool sendIntroMessage(SOCKET clientSocket, int lengthOfGuessingWord, char *guess
 	}
 }
 
-bool checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWord, char *failedGuesses)
+int checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWord, char *failedGuesses, int *livesLeft, int *lettersGuessed)
 {
 	bool isRight = false;
 	char guess[1] = { messageFromClient[0] };
@@ -328,11 +308,13 @@ bool checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWo
 		{
 			isRight = true;
 			guessWord[i] = guess[0];
+			*lettersGuessed += 1;
 		}
 	}
 
 	if (isRight == false)
 	{
+		*livesLeft -= 1;
 		int stringLength = strlen(failedGuesses);
 		failedGuesses[stringLength] = guess[0];
 		failedGuesses[stringLength + 1] = ' ';
@@ -341,6 +323,66 @@ bool checkPlayersGuess(char *messageFromClient, char *wordToGuess, char *guessWo
 	}
 	else
 		return true;
+}
+
+bool sendResponse(SOCKET clientSocket, bool isGuessCorrect, char *messageToClient, char *failedGuesses, char *guessWord, char *livesLeft)
+{
+	if (*livesLeft == 0)
+	{
+		strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n\nOUT OF LIVES! Better luck next time..\n\n");
+		sendDataToClient(clientSocket, messageToClient);
+		messageToClient[0] = '\0';	// Empty the array
+
+		return false;
+	}
+
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "---------------");
+
+	if (isGuessCorrect == true)
+		strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\nCorrect!\n");
+	else
+		strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\nWrong!\n");
+
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, failedGuesses);
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n");
+
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "Number of lives left: ");
+	char livesLeftString[15];
+	sprintf_s(livesLeftString, sizeof(livesLeftString),"%d", *livesLeft);
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, livesLeftString);
+
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n");
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n");
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, guessWord);
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "---------------");
+
+	messageToClient[strlen(messageToClient)] = '\0';
+	sendDataToClient(clientSocket, messageToClient);
+	messageToClient[0] = '\0';	// Empty the array
+
+	return true;
+}
+
+bool lostTheGame(SOCKET clientSocket, char *messageToClient)
+{
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n\nOUT OF LIVES! Better luck next time..\n\n");
+
+	if (sendDataToClient(clientSocket, messageToClient) == false)
+		return false;
+
+	messageToClient[0] = '\0';	// Empty the array
+	return true;
+}
+
+bool wonTheGame(SOCKET clientSocket, char *messageToClient)
+{
+	strcat_s(messageToClient, MESSAGE_BUFFER_SIZE, "\n\nCONGRATULATIONS! You are the winner!\n\n");
+
+	if (sendDataToClient(clientSocket, messageToClient) == false)
+		return false;
+
+	messageToClient[0] = '\0';	// Empty the array
+	return true;
 }
 
 bool exitProgram(SOCKET serverSocket)
